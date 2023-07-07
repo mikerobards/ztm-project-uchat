@@ -1,12 +1,11 @@
 use clap::{command, Parser, Subcommand};
 use color_eyre::{eyre::Context, Help, Result};
-use dotenvy::dotenv;
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 use tracing::{debug, error, info};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
-struct cli {
+struct Cli {
     #[clap(
         short,
         long,
@@ -14,26 +13,29 @@ struct cli {
         env = "API_DATABASE_URL"
     )]
     database_url: String,
+
     #[clap(short, long, default_value = "127.0.0.1:8070", env = "API_BIND")]
     bind: SocketAddr,
+
     #[clap(flatten)]
     verbosity: uchat_server::logging::Verbosity,
-    #[clap(subcommand)]
+
+    #[command(subcommand)]
     command: Option<Command>,
 }
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    // generate a session signing key
+    /// generate a session signing key
     GenKey,
 }
 
 async fn run() -> Result<()> {
     color_eyre::install()?;
 
-    let use_dotenv = dotenvy::dotenvy();
+    let use_dotenv = dotenvy::dotenv();
 
-    let args = cli::parse();
+    let args = Cli::parse();
 
     uchat_server::logging::setup(args.verbosity);
 
@@ -52,7 +54,7 @@ async fn run() -> Result<()> {
                 let path = "private_key.base64";
                 std::fs::write(path, key.as_str())?;
                 info!(target: "uchat_server", path=path, "private key saved to disk");
-                info!(target: "uchat_server", "set API_PRIVATE_KEY env variable with the content of the key in order to use it");
+                info!(target: "uchat_server", "set API_PRIVATE_KEY environment variable with the content of the key in order to use it");
                 return Ok(());
             }
         }
@@ -74,16 +76,14 @@ async fn run() -> Result<()> {
         rng: uchat_crypto::new_rng(),
     };
 
-    info!(target: "uchat_server", bind_addr = %args.bind());
+    info!(target: "uchat_server", bind_addr = %args.bind);
 
-    let router = uchat_server::new_router(state);
+    let router = uchat_server::router::new_router(state);
 
-    let server = Arc::new(
-        axum::Server::try_bind(&args.bind)
-            .wrap_err_with(|| "server initialization error")
-            .with_suggestion(|| "check bind address"),
-    )
-    .with_suggestion(|| "check if other services are using the same port")?;
+    let server = axum::Server::try_bind(&args.bind)
+        .wrap_err_with(|| "server initialization error")
+        .with_suggestion(|| "check bind address")
+        .with_suggestion(|| "check if other services are using the same port")?;
 
     let server = server.serve(router.into_make_service());
 
@@ -93,7 +93,7 @@ async fn run() -> Result<()> {
         error!(target: "uchat_server", server_error = %e);
     }
 
-    Ok(());
+    Ok(())
 }
 
 #[tokio::main]

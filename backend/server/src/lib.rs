@@ -2,11 +2,12 @@ use axum::extract::FromRef;
 use uchat_query::{AsyncConnection, AsyncConnectionPool, QueryError};
 
 pub mod logging;
+pub mod router;
 
 #[derive(Clone, FromRef)]
 pub struct AppState {
     pub db_pool: AsyncConnectionPool,
-    pub signing_key: uchat_crypto::sign::Keys,
+    pub signing_keys: uchat_crypto::sign::Keys,
     pub rng: rand::rngs::StdRng,
 }
 
@@ -19,13 +20,13 @@ impl AppState {
 pub mod cli {
     use color_eyre::{eyre::Context, Help};
     use rand_core::{CryptoRng, RngCore};
-    use uchat_crypto::sign::{EncodedPrivateKey, Keys};
+    use uchat_crypto::sign::{encode_private_key, EncodedPrivateKey, Keys};
 
     pub fn gen_keys<R>(rng: &mut R) -> color_eyre::Result<(EncodedPrivateKey, Keys)>
     where
         R: CryptoRng + RngCore,
     {
-        let (private_key, public_key) = Keys::generate(rng)?;
+        let (private_key, keys) = Keys::generate(rng)?;
         let private_key = encode_private_key(private_key)?;
         Ok((private_key, keys))
     }
