@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate diesel_derive_newtype;
 pub mod schema;
 
@@ -12,3 +11,5 @@ pub use error::QueryError;
 
 pub mod util;
 pub use util::{AsyncConnection, AsyncConnectionPool, OwnedAsyncConnection};
+
+pub mod user;
